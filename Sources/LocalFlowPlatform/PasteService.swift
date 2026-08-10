@@ -3,6 +3,41 @@ import AppKit
 import CoreGraphics
 import LocalFlowCore
 
+@_spi(Testing) public enum PasteFocusSource: Sendable, Equatable {
+    case systemWide
+    case application
+}
+
+@_spi(Testing) public struct PasteFocusCandidate: Sendable, Equatable {
+    public let source: PasteFocusSource
+    public let processIdentifier: Int32
+    public let isEditable: Bool
+
+    public init(source: PasteFocusSource, processIdentifier: Int32, isEditable: Bool) {
+        self.source = source
+        self.processIdentifier = processIdentifier
+        self.isEditable = isEditable
+    }
+}
+
+@_spi(Testing) public enum PasteFocusResolver {
+    public static func preferredSource(
+        frontmostProcessIdentifier: Int32,
+        candidates: [PasteFocusCandidate]
+    ) -> PasteFocusSource? {
+        for source in [PasteFocusSource.systemWide, .application] {
+            if candidates.contains(where: {
+                $0.source == source
+                    && $0.processIdentifier == frontmostProcessIdentifier
+                    && $0.isEditable
+            }) {
+                return source
+            }
+        }
+        return nil
+    }
+}
+
 public actor PasteService: Pasting {
     private var capturedClipboard: String?
     private var hasCapturedClipboard = false
@@ -55,8 +90,36 @@ public actor PasteService: Pasting {
         processIdentifier: pid_t
     ) -> (element: AXUIElement, anchor: CursorAnchor?)? {
         let application = AXUIElementCreateApplication(processIdentifier)
-        guard let focusedElement = focusedElement(of: application) else { return nil }
+        let elements: [(PasteFocusSource, AXUIElement)] = [
+            focusedElement(of: AXUIElementCreateSystemWide()).map { (.systemWide, $0) },
+            focusedElement(of: application).map { (.application, $0) },
+        ].compactMap { $0 }
 
+        let candidates = elements.compactMap { source, element -> PasteFocusCandidate? in
+            var ownerPID: pid_t = 0
+            guard AXUIElementGetPid(element, &ownerPID) == .success else { return nil }
+            return PasteFocusCandidate(
+                source: source,
+                processIdentifier: ownerPID,
+                isEditable: isEditable(element)
+            )
+        }
+
+        guard let preferredSource = PasteFocusResolver.preferredSource(
+            frontmostProcessIdentifier: processIdentifier,
+            candidates: candidates
+        ),
+        let focusedElement = elements.first(where: { source, element in
+            guard source == preferredSource else { return false }
+            var ownerPID: pid_t = 0
+            return AXUIElementGetPid(element, &ownerPID) == .success
+                && ownerPID == processIdentifier
+        })?.1 else { return nil }
+
+        return (focusedElement, cursorAnchor(of: focusedElement))
+    }
+
+    private nonisolated static func isEditable(_ focusedElement: AXUIElement) -> Bool {
         var roleValue: CFTypeRef?
         let role = if AXUIElementCopyAttributeValue(
             focusedElement,
@@ -84,8 +147,7 @@ public actor PasteService: Pasting {
         ) == .success && selectedRangeSettable.boolValue
 
         let isTextRole = [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole].contains(role)
-        guard canSetSelection || (isTextRole && canSetValue) else { return nil }
-        return (focusedElement, cursorAnchor(of: focusedElement))
+        return canSetSelection || (isTextRole && canSetValue)
     }
 
     private nonisolated static func focusedElement(of application: AXUIElement) -> AXUIElement? {

@@ -1,5 +1,5 @@
 import LocalFlowCore
-import LocalFlowPlatform
+@_spi(Testing) import LocalFlowPlatform
 import Foundation
 import AppKit
 
@@ -32,6 +32,47 @@ func testPasteTargetPreservesCursorAnchor() {
         "cursor anchor survives the paste target"
     )
     assert(plain != anchored, "cursor anchor participates in paste target equality")
+}
+
+func testSystemWideEditableFocusWinsOverApplicationContainer() {
+    let candidates = [
+        PasteFocusCandidate(
+            source: .application,
+            processIdentifier: 42,
+            isEditable: false
+        ),
+        PasteFocusCandidate(
+            source: .systemWide,
+            processIdentifier: 42,
+            isEditable: true
+        ),
+    ]
+
+    assert(
+        PasteFocusResolver.preferredSource(
+            frontmostProcessIdentifier: 42,
+            candidates: candidates
+        ) == .systemWide,
+        "system-wide text focus bypasses a browser application container"
+    )
+}
+
+func testFocusResolverRejectsAnotherProcess() {
+    let candidates = [
+        PasteFocusCandidate(
+            source: .systemWide,
+            processIdentifier: 99,
+            isEditable: true
+        ),
+    ]
+
+    assert(
+        PasteFocusResolver.preferredSource(
+            frontmostProcessIdentifier: 42,
+            candidates: candidates
+        ) == nil,
+        "focused text from another process is not a paste target"
+    )
 }
 
 func testCaptureContextSnapshotsTargetPromptly() async {
@@ -155,6 +196,8 @@ func testPermissionServiceCreation() {
 func runAllTests() async {
     testPasteServiceCreation()
     testPasteTargetPreservesCursorAnchor()
+    testSystemWideEditableFocusWinsOverApplicationContainer()
+    testFocusResolverRejectsAnotherProcess()
     await testCaptureContextSnapshotsTargetPromptly()
     await testCopyLeavesSelectedTextOnPasteboard()
     await testUnavailableTargetCopiesThenThrows()
