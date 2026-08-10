@@ -14,10 +14,24 @@ func assert(_ condition: Bool, _ message: String, file: String = #file, line: In
 func testPasteServiceCreation() {
     let target = PasteTarget(processIdentifier: 42)
     assert(target == PasteTarget(processIdentifier: 42), "PasteTarget equality uses its process identifier")
+    assert(target.cursorAnchor == nil, "default paste target has no cursor anchor")
 
     func acceptsPaster(_: some Pasting) {}
     acceptsPaster(PasteService())
     assert(true, "PasteService conforms to Pasting without touching the clipboard")
+}
+
+func testPasteTargetPreservesCursorAnchor() {
+    let plain = PasteTarget(processIdentifier: 42)
+    let anchored = PasteTarget(
+        processIdentifier: 42,
+        cursorAnchor: CursorAnchor(location: 7, length: 0)
+    )
+    assert(
+        anchored.cursorAnchor == CursorAnchor(location: 7, length: 0),
+        "cursor anchor survives the paste target"
+    )
+    assert(plain != anchored, "cursor anchor participates in paste target equality")
 }
 
 func testCaptureContextSnapshotsTargetPromptly() async {
@@ -140,6 +154,7 @@ func testPermissionServiceCreation() {
 
 func runAllTests() async {
     testPasteServiceCreation()
+    testPasteTargetPreservesCursorAnchor()
     await testCaptureContextSnapshotsTargetPromptly()
     await testCopyLeavesSelectedTextOnPasteboard()
     await testUnavailableTargetCopiesThenThrows()

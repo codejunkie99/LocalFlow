@@ -2,9 +2,21 @@ import Foundation
 
 public struct PasteTarget: Sendable, Equatable {
     public let processIdentifier: Int32
+    public let cursorAnchor: CursorAnchor?
 
-    public init(processIdentifier: Int32) {
+    public init(processIdentifier: Int32, cursorAnchor: CursorAnchor? = nil) {
         self.processIdentifier = processIdentifier
+        self.cursorAnchor = cursorAnchor
+    }
+}
+
+public struct CursorAnchor: Sendable, Equatable {
+    public let location: Int
+    public let length: Int
+
+    public init(location: Int, length: Int) {
+        self.location = location
+        self.length = length
     }
 }
 

@@ -6,6 +6,8 @@ import LocalFlowCore
 public actor PasteService: Pasting {
     private var capturedClipboard: String?
     private var hasCapturedClipboard = false
+    private var capturedFocusElement: AXElementBox?
+    private var capturedAnchor: CursorAnchor?
     private static let markerType = NSPasteboard.PasteboardType("dev.localflow.paste-session")
     private var sessionMarker: String?
     private var pendingRestoration: Task<Void, Never>?
@@ -21,31 +23,40 @@ public actor PasteService: Pasting {
         defer { releaseOperation() }
 
         guard !Task.isCancelled else { return nil }
-        let target = await MainActor.run { () -> PasteTarget? in
+        let capture = await MainActor.run { () -> (PasteTarget, AXElementBox?, CursorAnchor?)? in
             guard let application = NSWorkspace.shared.frontmostApplication else { return nil }
-            if AXIsProcessTrusted(), !Self.hasEditableFocus(processIdentifier: application.processIdentifier) {
+            guard AXIsProcessTrusted() else {
+                return (PasteTarget(processIdentifier: application.processIdentifier), nil, nil)
+            }
+            guard let focus = Self.editableFocus(processIdentifier: application.processIdentifier) else {
                 return nil
             }
-            return PasteTarget(processIdentifier: application.processIdentifier)
+            let target = PasteTarget(
+                processIdentifier: application.processIdentifier,
+                cursorAnchor: focus.anchor
+            )
+            return (target, AXElementBox(element: focus.element), focus.anchor)
         }
+        guard let capture else {
+            capturedFocusElement = nil
+            capturedAnchor = nil
+            return nil
+        }
+        capturedFocusElement = capture.1
+        capturedAnchor = capture.2
         guard !Task.isCancelled else { return nil }
         if pendingRestoration == nil {
             captureClipboard()
         }
-        return target
+        return capture.0
     }
 
-    private nonisolated static func hasEditableFocus(processIdentifier: pid_t) -> Bool {
+    private nonisolated static func editableFocus(
+        processIdentifier: pid_t
+    ) -> (element: AXUIElement, anchor: CursorAnchor?)? {
         let application = AXUIElementCreateApplication(processIdentifier)
-        var focusedValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            application,
-            kAXFocusedUIElementAttribute as CFString,
-            &focusedValue
-        ) == .success,
-        let focusedValue else { return false }
+        guard let focusedElement = focusedElement(of: application) else { return nil }
 
-        let focusedElement = focusedValue as! AXUIElement
         var roleValue: CFTypeRef?
         let role = if AXUIElementCopyAttributeValue(
             focusedElement,
@@ -73,7 +84,65 @@ public actor PasteService: Pasting {
         ) == .success && selectedRangeSettable.boolValue
 
         let isTextRole = [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole].contains(role)
-        return canSetSelection || (isTextRole && canSetValue)
+        guard canSetSelection || (isTextRole && canSetValue) else { return nil }
+        return (focusedElement, cursorAnchor(of: focusedElement))
+    }
+
+    private nonisolated static func focusedElement(of application: AXUIElement) -> AXUIElement? {
+        var focusedValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            application,
+            kAXFocusedUIElementAttribute as CFString,
+            &focusedValue
+        ) == .success,
+        let focusedValue,
+        CFGetTypeID(focusedValue) == AXUIElementGetTypeID() else { return nil }
+        return (focusedValue as! AXUIElement)
+    }
+
+    private nonisolated static func cursorAnchor(of element: AXUIElement) -> CursorAnchor? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            &value
+        ) == .success,
+        let value,
+        CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+        let rangeValue = value as! AXValue
+        guard AXValueGetType(rangeValue) == .cfRange else { return nil }
+        var range = CFRange(location: 0, length: 0)
+        guard AXValueGetValue(rangeValue, .cfRange, &range) else { return nil }
+        return CursorAnchor(location: range.location, length: range.length)
+    }
+
+    private nonisolated static func setCursorAnchor(_ anchor: CursorAnchor, on element: AXUIElement) {
+        var range = CFRange(location: anchor.location, length: anchor.length)
+        guard let rangeValue = AXValueCreate(.cfRange, &range) else { return }
+        AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, rangeValue)
+    }
+
+    private func restoreCursor(to target: PasteTarget, element: AXElementBox?, anchor: CursorAnchor?) async {
+        guard element != nil || anchor != nil else { return }
+        await MainActor.run {
+            let application = AXUIElementCreateApplication(target.processIdentifier)
+            let targetElement: AXUIElement
+            if let element = element?.element {
+                targetElement = element
+                AXUIElementSetAttributeValue(
+                    application,
+                    kAXFocusedUIElementAttribute as CFString,
+                    element
+                )
+            } else if let focused = Self.focusedElement(of: application) {
+                targetElement = focused
+            } else {
+                return
+            }
+            if let anchor {
+                Self.setCursorAnchor(anchor, on: targetElement)
+            }
+        }
     }
 
     public func copy(_ text: String) async {
@@ -123,6 +192,13 @@ public actor PasteService: Pasting {
             guard AXIsProcessTrusted() else {
                 try copyThenThrow(text, error: .accessibilityDenied)
             }
+
+            await restoreCursor(
+                to: target,
+                element: capturedFocusElement,
+                anchor: capturedAnchor ?? target.cursorAnchor
+            )
+            try Task.checkCancellation()
 
             let marker = UUID().uuidString
             let pasteboard = NSPasteboard.general
@@ -244,7 +320,13 @@ public actor PasteService: Pasting {
     private func invalidateSession() {
         capturedClipboard = nil
         hasCapturedClipboard = false
+        capturedFocusElement = nil
+        capturedAnchor = nil
         sessionMarker = nil
         pendingRestoration = nil
     }
+}
+
+private struct AXElementBox: @unchecked Sendable {
+    let element: AXUIElement
 }
