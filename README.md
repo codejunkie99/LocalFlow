@@ -32,6 +32,19 @@ LocalFlow turns speech into polished text at the active cursor without sending a
 - Xcode 26 or the matching Swift 6.2 command-line tools
 - Microphone, Speech Recognition, and Accessibility permissions
 
+## Download
+
+The latest packaged build is available as a direct-download DMG for Apple silicon Macs on macOS 26+:
+
+[Download LocalFlow 0.1.0 DMG](https://github.com/codejunkie99/LocalFlow/releases/download/v0.1.0/LocalFlow-0.1.0-arm64.dmg)
+
+1. Open the downloaded DMG.
+2. Drag `LocalFlow.app` into your Applications folder.
+3. On first launch, right-click `LocalFlow.app` in Finder and choose **Open**, then confirm once.
+4. Grant Microphone, Speech Recognition, and Accessibility when prompted.
+
+The app is signed with an Apple Development certificate but is not notarized, so macOS shows a one-time warning on first launch. Right-clicking and choosing **Open** is the supported way to bypass it.
+
 ## Quick start
 
 ```bash
