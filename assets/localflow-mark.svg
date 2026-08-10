@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title description">
+  <title id="title">LocalFlow mark</title>
+  <desc id="description">A black notch shape containing a red flowing waveform.</desc>
+  <defs>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171316"/>
+      <stop offset="1" stop-color="#070607"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#E33B4B" stop-opacity="0"/>
+      <stop offset=".25" stop-color="#E33B4B"/>
+      <stop offset=".72" stop-color="#FF5968"/>
+      <stop offset="1" stop-color="#E33B4B" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 28h220v112c0 49-39 88-88 88h-44c-49 0-88-39-88-88V28Z" fill="url(#shell)"/>
+  <path d="M18 28.5h220" stroke="#3A3035"/>
+  <path d="M42 132c18 0 21-28 39-28s21 54 39 54 21-82 39-82 21 67 39 67 21-27 39-27" fill="none" stroke="url(#signal)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M42 132c18 0 21-14 39-14s21 27 39 27 21-41 39-41 21 34 39 34 21-14 39-14" fill="none" stroke="#F04A5A" stroke-opacity=".34" stroke-width="2" stroke-linecap="round"/>
+</svg>

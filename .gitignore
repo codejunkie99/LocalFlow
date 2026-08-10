@@ -1,0 +1,16 @@
+.build/
+.swiftpm/
+.worktrees/
+dist/
+log.md
+prompt.md
+cycles/
+launch-probe*/
+CODE_AUDIT.md
+PRODUCT_AUDIT.md
+artifacts/performance/acceptance.json
+artifacts/performance/*.json
+!artifacts/performance/acceptance-template.json
+.DS_Store
+*.swp
+*.xcuserstate
