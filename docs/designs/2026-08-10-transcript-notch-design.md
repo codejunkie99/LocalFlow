@@ -10,7 +10,7 @@ Turn LocalFlow’s status-only notch into a progressive transcript surface witho
 ## Product decisions
 
 - No voice wake phrase or always-listening microphone mode.
-- Transcript history is memory-only and is cleared when LocalFlow quits.
+- Transcript history was memory-only at design time; it is now persisted in a user-private local SQLite store and cleared through the in-app action.
 - Keep at most ten successful transcripts.
 - Automatically expand the finished transcript after every successful dictation.
 - Search and All / Raw / Cleaned filters apply to the five-result history list.

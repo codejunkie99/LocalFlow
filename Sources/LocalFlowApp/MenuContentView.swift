@@ -4,6 +4,7 @@ import LocalFlowPlatform
 
 struct MenuContentView: View {
     @ObservedObject var model: AppModel
+    @State private var confirmingClearHistory = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -104,6 +105,26 @@ struct MenuContentView: View {
 
             Divider()
 
+            // Updates
+            updateSection
+
+            Divider()
+
+            Button("Clear Transcript History", role: .destructive) {
+                confirmingClearHistory = true
+            }
+            .font(.caption)
+            .disabled(model.historyCount == 0)
+            .accessibilityLabel("Clear transcript history")
+            .alert("Clear transcript history?", isPresented: $confirmingClearHistory) {
+                Button("Cancel", role: .cancel) {}
+                Button("Clear History", role: .destructive) { model.clearHistory() }
+            } message: {
+                Text("This permanently removes every saved transcript from this Mac. Permissions and settings are unchanged.")
+            }
+
+            Divider()
+
             Button("Quit LocalFlow") {
                 NSApplication.shared.terminate(nil)
             }
@@ -152,6 +173,115 @@ struct MenuContentView: View {
         case .pasting: return "Pasting..."
         case .preparing(let msg): return msg
         case .failed(let error): return "Error: \(String(describing: error))"
+        }
+    }
+
+    @ViewBuilder private var updateSection: some View {
+        let version = model.installedVersion.rawValue
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("LocalFlow v\(version)")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(updateStatusText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            switch model.updateState {
+            case .idle, .current:
+                Button {
+                    model.checkForUpdates()
+                } label: {
+                    Label("Update LocalFlow", systemImage: "arrow.down.circle")
+                        .font(.caption.weight(.semibold))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.phase.isBusy)
+                .accessibilityLabel("Check for LocalFlow updates")
+
+            case .checking:
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .accessibilityLabel("Checking for LocalFlow updates")
+
+            case .downloading(let progress):
+                ProgressView(value: progress)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .accessibilityLabel("Downloading LocalFlow update")
+                    .accessibilityValue("\(Int(progress * 100)) percent")
+
+            case .building, .installing:
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .accessibilityLabel(
+                        model.updateState == .building
+                            ? "Building LocalFlow update"
+                            : "Installing LocalFlow update"
+                    )
+
+            case .ready(let version):
+                Button {
+                    model.installUpdate()
+                } label: {
+                    Label("Install v\(version.rawValue)", systemImage: "arrow.down.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(model.phase.isBusy)
+                .accessibilityLabel("Install LocalFlow \(version.rawValue)")
+
+            case .failed(let failure):
+                Button {
+                    model.checkForUpdates()
+                } label: {
+                    Label(updateErrorMessage(failure), systemImage: "arrow.clockwise")
+                        .font(.caption)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.orange)
+                .accessibilityLabel(updateErrorMessage(failure))
+            }
+        }
+    }
+
+    private var updateStatusText: String {
+        switch model.updateState {
+        case .idle: "Not checked"
+        case .checking: "Checking"
+        case .downloading: "Downloading"
+        case .building: "Building"
+        case .installing: "Installing"
+        case .current: "Up to date"
+        case .ready(let version): "v\(version.rawValue) ready"
+        case .failed: "Update failed"
+        }
+    }
+
+    private func updateErrorMessage(_ failure: UpdateFailure) -> String {
+        switch failure {
+        case .network: "Update unavailable"
+        case .invalidManifest: "Invalid release manifest"
+        case .checksumMismatch: "Release checksum mismatch"
+        case .unsafeArchive: "Unsafe release archive"
+        case .buildFailed: "Local build failed"
+        case .signingIdentityMissing: "Signing identity missing - run setup again"
+        case .signatureMismatch: "Signature mismatch"
+        case .databaseBackupFailed: "History backup failed"
+        case .replacementFailed: "Replacement failed - old app restored"
+        case .relaunchFailed: "Relaunch failed - old app restored"
         }
     }
 }

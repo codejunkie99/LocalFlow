@@ -7,11 +7,19 @@ let package = Package(
         .library(name: "LocalFlowCore", targets: ["LocalFlowCore"]),
         .library(name: "LocalFlowPlatform", targets: ["LocalFlowPlatform"]),
         .executable(name: "LocalFlowApp", targets: ["LocalFlowApp"]),
+        .executable(name: "LocalFlowUpdater", targets: ["LocalFlowUpdater"]),
     ],
     targets: [
         .target(name: "LocalFlowCore"),
-        .target(name: "LocalFlowPlatform", dependencies: ["LocalFlowCore"]),
+        .target(
+            name: "LocalFlowPlatform",
+            dependencies: ["LocalFlowCore"],
+            linkerSettings: [
+                .linkedLibrary("sqlite3"),
+            ]
+        ),
         .executableTarget(name: "LocalFlowApp", dependencies: ["LocalFlowCore", "LocalFlowPlatform"]),
+        .executableTarget(name: "LocalFlowUpdater", dependencies: ["LocalFlowCore"]),
         .testTarget(name: "LocalFlowPlatformTests", dependencies: ["LocalFlowCore", "LocalFlowPlatform"]),
     ]
 )

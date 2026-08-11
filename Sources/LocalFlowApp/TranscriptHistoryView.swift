@@ -21,6 +21,12 @@ struct TranscriptHistoryView: View {
         .onChange(of: model.searchFocusReset) { _, _ in
             searchFocused = false
         }
+        .onChange(of: model.searchText) { _, search in
+            model.onHistoryQueryChange?(search, model.sourceFilter)
+        }
+        .onChange(of: model.sourceFilter) { _, filter in
+            model.onHistoryQueryChange?(model.searchText, filter)
+        }
     }
 
     private var header: some View {
@@ -92,10 +98,10 @@ struct TranscriptHistoryView: View {
                 Image(systemName: "text.magnifyingglass")
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                Text(model.history.entries.isEmpty ? "No transcripts this session" : "No matching transcripts")
+                Text(model.historyCount == 0 ? "No saved transcripts" : "No matching transcripts")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if model.history.entries.isEmpty {
+                if model.historyCount == 0 {
                     Text("Your next successful dictation will appear here.")
                         .font(.caption2)
                         .foregroundStyle(.secondary.opacity(0.8))

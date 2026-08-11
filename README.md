@@ -21,9 +21,9 @@ LocalFlow turns speech into polished text at the active cursor without sending a
 - Falls back to the raw transcript if cleanup misses its deadline.
 - Pastes safely into the currently focused text field.
 - Keeps listening and processing in a 170 × 38 waveform-only notch. Dictation auto-pastes into a focused text field; without an editable target, the notch expands with Copy and History.
-- Keeps up to ten recent transcripts in memory for the current app session only.
+- Keeps unlimited, searchable transcript history in a user-private local SQLite database.
 - Supports click-to-start/stop, push-to-talk, Reduce Motion, and a persistent 220–420 pt expanded-HUD width.
-- Never persists audio, transcripts, prompts, or clipboard contents.
+- Never persists audio, prompts, or clipboard contents. Transcript history is stored only on your Mac and can be cleared at any time.
 
 ## Requirements
 
@@ -32,18 +32,17 @@ LocalFlow turns speech into polished text at the active cursor without sending a
 - Xcode 26 or the matching Swift 6.2 command-line tools
 - Microphone, Speech Recognition, and Accessibility permissions
 
-## Download
+## Install
 
-The latest packaged build is available as a direct-download DMG for Apple silicon Macs on macOS 26+:
+Start with [SETUP.md](SETUP.md). On a new Mac, the guided flow is:
 
-[Download LocalFlow 0.1.0 DMG](https://github.com/codejunkie99/LocalFlow/releases/download/v0.1.0/LocalFlow-0.1.0-arm64.dmg)
+```bash
+git clone https://github.com/codejunkie99/LocalFlow.git
+cd LocalFlow
+./scripts/setup-localflow.sh
+```
 
-1. Open the downloaded DMG.
-2. Drag `LocalFlow.app` into your Applications folder.
-3. On first launch, right-click `LocalFlow.app` in Finder and choose **Open**, then confirm once.
-4. Grant Microphone, Speech Recognition, and Accessibility when prompted.
-
-The app is signed with an Apple Development certificate but is not notarized, so macOS shows a one-time warning on first launch. Right-clicking and choosing **Open** is the supported way to bypass it.
+This installs one canonical signed copy at `~/Applications/LocalFlow.app` and preserves permissions across updates with a stable per-Mac signing identity.
 
 ## Quick start
 
@@ -54,8 +53,6 @@ cd LocalFlow
 open dist/LocalFlow.app
 ```
 
-The packaging script automatically uses the first installed Apple Development certificate. If none exists, it creates an ad-hoc signed local build and explains the permission trade-off.
-
 For a full first-run walkthrough, see [Installation](docs/INSTALL.md).
 
 ## Use
@@ -65,19 +62,24 @@ For a full first-run walkthrough, see [Installation](docs/INSTALL.md).
 3. Speak naturally.
 4. Release the keys to transcribe, optionally clean up, and paste.
 
-A quick tap of the shortcut enables toggle mode: tap once to start and again to stop. You can also use **Start Dictation** in the LocalFlow window.
+A quick tap of the shortcut enables toggle mode: tap once to start and again to stop. You can also use **Start Dictation** from the LocalFlow menu-bar menu.
 
 ## Privacy model
 
-- No networking client is linked or used by the application.
+- No transcript content is uploaded or logged.
 - Audio exists only in memory while recording.
-- Transcripts and cleanup prompts are never persisted.
-- Transcript history is memory-only, never written to disk, and clears when LocalFlow quits.
+- Transcript history is stored locally at `~/Library/Application Support/LocalFlow/history.sqlite3` for the current user only.
+- Use **Clear Transcript History** in LocalFlow to permanently delete saved transcripts; permissions and settings are unchanged.
+- Cleanup prompts and clipboard snapshots are never persisted.
 - Logs contain state and timing information only.
 - Clipboard contents are restored after the paste attempt when possible.
 - Apple may download system-managed speech and language-model assets.
 
-See [Architecture](docs/ARCHITECTURE.md) for the trust boundaries and data flow.
+For first-run setup on a new Mac, start at [SETUP.md](SETUP.md). See [Architecture](docs/ARCHITECTURE.md) for the trust boundaries and data flow.
+
+## Update
+
+Use **Update LocalFlow** from the LocalFlow menu. It checks the newest tagged source release only when you ask, verifies the manifest/checksum/archive, builds with the same per-Mac signing identity, backs up history, and replaces `~/Applications/LocalFlow.app` with rollback safety. There is no background updater. Maintainers publish source releases with `./scripts/publish-source-release.sh`; a notarized DMG is a later distribution layer for when Developer ID credentials exist.
 
 ## Build and test
 

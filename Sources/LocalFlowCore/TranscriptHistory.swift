@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PasteTarget: Sendable, Equatable {
+public struct PasteTarget: Codable, Sendable, Equatable {
     public let processIdentifier: Int32
     public let cursorAnchor: CursorAnchor?
 
@@ -10,7 +10,7 @@ public struct PasteTarget: Sendable, Equatable {
     }
 }
 
-public struct CursorAnchor: Sendable, Equatable {
+public struct CursorAnchor: Codable, Sendable, Equatable {
     public let location: Int
     public let length: Int
 
@@ -20,7 +20,7 @@ public struct CursorAnchor: Sendable, Equatable {
     }
 }
 
-public struct DictationResult: Sendable, Equatable {
+public struct DictationResult: Codable, Sendable, Equatable {
     public let id: UUID
     public let createdAt: Date
     public let rawText: String
@@ -73,19 +73,15 @@ public struct TranscriptSelection: Identifiable, Sendable, Equatable {
 
 public struct TranscriptHistory: Sendable, Equatable {
     public private(set) var entries: [DictationResult] = []
-    public static let capacity = 10
 
     public init() {}
 
     public mutating func insert(_ result: DictationResult) {
         entries.removeAll { $0.id == result.id }
         entries.insert(result, at: 0)
-        if entries.count > Self.capacity {
-            entries.removeLast(entries.count - Self.capacity)
-        }
     }
 
-    public func recent(limit: Int = Self.capacity) -> [DictationResult] {
+    public func recent(limit: Int = 10) -> [DictationResult] {
         Array(entries.prefix(max(0, limit)))
     }
 
@@ -112,4 +108,18 @@ public struct TranscriptHistory: Sendable, Equatable {
         }
         return Array(matches.prefix(max(0, limit)))
     }
+}
+
+public struct TranscriptHistorySnapshot: Sendable, Equatable {
+    public let filtered: [TranscriptSelection]
+    public let recent: [TranscriptSelection]
+    public let totalCount: Int
+
+    public init(filtered: [TranscriptSelection], recent: [TranscriptSelection], totalCount: Int) {
+        self.filtered = filtered
+        self.recent = recent
+        self.totalCount = totalCount
+    }
+
+    public static let empty = TranscriptHistorySnapshot(filtered: [], recent: [], totalCount: 0)
 }

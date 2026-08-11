@@ -15,9 +15,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.2.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSMinimumSystemVersion</key>
     <string>26.0</string>
     <key>LSUIElement</key>
@@ -25,6 +25,6 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>Microphone access is used only while you hold the push-to-talk shortcut. Audio is processed on your Mac and never stored.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>Speech recognition runs entirely on your Mac. Transcripts are never saved or sent anywhere.</string>
+    <string>Speech recognition runs entirely on your Mac. Transcript history is stored locally in your user account and can be cleared at any time.</string>
 </dict>
 </plist>

@@ -5,7 +5,7 @@ import LocalFlowCore
     @Published var state: NotchHUDState
     @Published var mode: NotchPresentationMode
     @Published var currentResult: DictationResult?
-    @Published var history: TranscriptHistory
+    @Published private(set) var historySnapshot = TranscriptHistorySnapshot.empty
     @Published var searchText = ""
     @Published var sourceFilter: TranscriptSourceFilter = .all
     @Published var feedback: String?
@@ -17,27 +17,34 @@ import LocalFlowCore
     var onSearchFocusChange: ((Bool) -> Void)?
     var onCollapseHistory: (() -> Void)?
     var onCopy: ((TranscriptSelection) -> Void)?
+    var onHistoryQueryChange: ((String, TranscriptSourceFilter) -> Void)?
 
     init(
         state: NotchHUDState = .hidden,
         width: Double = NotchHUDLayout.defaultWidth,
         mode: NotchPresentationMode = .compact,
-        currentResult: DictationResult? = nil,
-        history: TranscriptHistory = TranscriptHistory()
+        currentResult: DictationResult? = nil
     ) {
         self.state = state
         self.width = NotchHUDLayout.clampedWidth(width)
         self.mode = mode
         self.currentResult = currentResult
-        self.history = history
     }
 
     var filteredResults: [TranscriptSelection] {
-        history.filtered(search: searchText, source: sourceFilter, limit: 5)
+        historySnapshot.filtered
     }
 
     var recentResults: [TranscriptSelection] {
-        history.recent(limit: 10).map(finalSelection(for:))
+        historySnapshot.recent
+    }
+
+    var historyCount: Int {
+        historySnapshot.totalCount
+    }
+
+    func updateHistorySnapshot(_ snapshot: TranscriptHistorySnapshot) {
+        historySnapshot = snapshot
     }
 
     func openHistory() {

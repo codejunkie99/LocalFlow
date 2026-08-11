@@ -83,6 +83,10 @@ private final class TranscriptNotchPanel: NSPanel {
         viewModel.onCopy = onCopy
     }
 
+    func setHistoryQuery(_ query: @escaping (String, TranscriptSourceFilter) -> Void) {
+        viewModel.onHistoryQueryChange = query
+    }
+
     func show(_ state: NotchHUDState) {
         dismissalTask?.cancel()
         hideTask?.cancel()
@@ -106,13 +110,12 @@ private final class TranscriptNotchPanel: NSPanel {
         }
     }
 
-    func presentResult(_ result: DictationResult, history: TranscriptHistory) {
+    func presentResult(_ result: DictationResult) {
         dismissalTask?.cancel()
         hideTask?.cancel()
         currentState = .success(milliseconds: result.latency.totalMilliseconds)
         viewModel.state = currentState
         viewModel.currentResult = result
-        viewModel.history = history
         viewModel.searchText = ""
         viewModel.sourceFilter = .all
         viewModel.feedback = nil
@@ -121,8 +124,8 @@ private final class TranscriptNotchPanel: NSPanel {
         scheduleResultDismissal()
     }
 
-    func updateHistory(_ history: TranscriptHistory) {
-        viewModel.history = history
+    func updateHistorySnapshot(_ snapshot: TranscriptHistorySnapshot) {
+        viewModel.updateHistorySnapshot(snapshot)
     }
 
     func showFeedback(_ feedback: String) {
@@ -186,6 +189,7 @@ private final class TranscriptNotchPanel: NSPanel {
         panel.ignoresMouseEvents = mode == .compact
 
         if mode == .history {
+            viewModel.onHistoryQueryChange?(viewModel.searchText, viewModel.sourceFilter)
             dismissalTask?.cancel()
             dismissalTask = nil
             clearSearchFocusAndResign()
